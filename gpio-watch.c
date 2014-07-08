@@ -34,7 +34,7 @@
 #define EDGESTRLEN 8
 #define GPIODIRLEN 8
 
-#define OPTSTRING "D:e:"
+#define OPTSTRING "D:e:d"
 
 #ifndef GPIO_BASE
 #define GPIO_BASE "/sys/class/gpio"
@@ -46,6 +46,7 @@
 
 char *script_dir = DEFAULT_SCRIPT_DIR;
 int default_edge = EDGE_BOTH;
+int detach = 0;
 
 struct pin {
 	int pin;
@@ -243,6 +244,9 @@ int main(int argc, char **argv) {
 
 	while (-1 != (ch = getopt(argc, argv, OPTSTRING))) {
 		switch (ch) {
+			case 'd':
+				detach = 1;
+				break;
 			case 'D':
 				script_dir = strdup(optarg);
 				break;
@@ -293,6 +297,8 @@ int main(int argc, char **argv) {
 		pin_export(pins[i].pin);
 		pin_set_edge(pins[i].pin, pins[i].edge);
 	}
+
+	if (detach) daemon(1, 0);
 
 	watch_pins();
 
