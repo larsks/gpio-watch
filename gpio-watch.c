@@ -60,7 +60,7 @@ int parse_edge(const char *edge) {
 		return -1;
 }
 
-int export_pin(int pin) {
+int pin_export(int pin) {
 	char *export_path;
 	char *pin_path;
 
@@ -78,6 +78,38 @@ int export_pin(int pin) {
 		fprintf(fp, "%d\n", pin);
 		fclose(fp);
 	}
+
+	free(pin_path);
+	free(export_path);
+}
+
+int pin_set_edge(int pin, int edge) {
+	char *pin_path;
+	int pin_path_len;
+	FILE *fp;
+
+	pin_path_len = strlen(GPIO_BASE) + GPIODIRLEN + strlen("edge") + 3;
+	pin_path = (char *)malloc(pin_path_len);
+	snprintf(pin_path, pin_path_len,
+			"%s/gpio%d", GPIO_BASE, pin);
+
+	if (! is_dir(pin_path)) {
+		fprintf(stderr, "error: pin %d is not exported.\n", pin);
+		exit(1);
+	}
+
+	snprintf(pin_path, pin_path_len,
+			"%s/gpio%d/edge", GPIO_BASE, pin);
+
+	fp = fopen(pin_path, "w");
+	if (EDGE_RISING == edge)
+		fprintf(fp, "rising\n");
+	else if (EDGE_FALLING == edge)
+		fprintf(fp, "falling\n");
+	else if (EDGE_BOTH == edge)
+		fprintf(fp, "both\n");
+	fclose(fp);
+	free(pin_path);
 }
 
 int main(int argc, char **argv) {
@@ -137,7 +169,8 @@ int main(int argc, char **argv) {
 	}
 
 	for (i=0; i<num_pins; i++) {
-		export_pin(pins[i].pin);
+		pin_export(pins[i].pin);
+		pin_set_edge(pins[i].pin, pins[i].edge);
 	}
 
 	return 0;
