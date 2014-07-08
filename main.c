@@ -16,7 +16,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <assert.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <poll.h>
@@ -31,14 +30,20 @@
 
 #define OPTSTRING "D:e:d"
 
+// Where to look for event scripts.  Scripts in this directory
+// must be named after the pin number being monitored (so,
+// for example, /etc/gpio-scripts/4).
 #ifndef DEFAULT_SCRIPT_DIR
 #define DEFAULT_SCRIPT_DIR "/etc/gpio-scripts"
 #endif
 
 char *script_dir = DEFAULT_SCRIPT_DIR;
 int default_edge = EDGE_BOTH;
-int detach = 0;
+int detach       = 0;
+int loglevel	 = 0;
 
+// This will hold the list of pins to monitor generated from
+// command line arguments.
 struct pin *pins = NULL;
 int num_pins = 0;
 
@@ -75,6 +80,17 @@ void run_script (int pin, int value) {
 	}
 
 	wait(&status);
+
+	if (WIFEXITED(status)) {
+		if (0 != WEXITSTATUS(status)) {
+			fprintf(stderr, "warning: pin %d: event script exited with status = %d\n",
+					pin, WEXITSTATUS(status));
+		}
+	} else if (WIFSIGNALED(status)) {
+		fprintf(stderr, "warning: pin %d: event script exited due to signal %d\n",
+				pin, WTERMSIG(status));
+	}
+
 	free(script_path);
 
 }

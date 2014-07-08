@@ -1,9 +1,40 @@
+/*
+ * gpio-watch, a tool for running scripts in response to gpio events
+ * Copyright (C) 2014 Lars Kellogg-Stedman <lars@oddbit.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 
 #include "gpio.h"
+#include "fileutil.h"
+
+// Parse a string ("in", "out") and return
+// the corresponding DIRECTION_* constant, or -1 if the string
+// is invalid.
+int parse_direction(const char *direction) {
+	if (0 == strncmp(direction, "in", DIRSTRLEN))
+		return DIRECTION_IN;
+	else if (0 == strncmp(direction, "out", DIRSTRLEN))
+		return DIRECTION_OUT;
+	else
+		return -1;
+}
 
 // Parse a string ("rising", "falling", "both") and return
 // the corresponding EDGE_* constant, or -1 if the string
@@ -15,6 +46,8 @@ int parse_edge(const char *edge) {
 		return EDGE_FALLING;
 	else if (0 == strncmp(edge, "both", EDGESTRLEN))
 		return EDGE_BOTH;
+	else if (0 == strncmp(edge, "none", EDGESTRLEN))
+		return EDGE_NONE;
 	else
 		return -1;
 }
