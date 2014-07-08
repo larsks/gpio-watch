@@ -180,7 +180,7 @@ int watch_pins() {
 		snprintf(pin_path, pin_path_len,
 				"%s/gpio%d/value", GPIO_BASE, pins[i].pin);
 		fd = open(pin_path, O_RDONLY);
-//		read(fd, valbuf, 2);
+		read(fd, valbuf, 2);
 		fdlist[i].fd = fd;
 		fdlist[i].events = POLLPRI;
 	}
