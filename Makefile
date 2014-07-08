@@ -1,4 +1,4 @@
-SRCS = gpio-watch.c
+SRCS = main.c gpio.c
 OBJS = $(SRCS:.c=.o)
 
 all: gpio-watch
