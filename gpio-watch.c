@@ -1,3 +1,21 @@
+/*
+ * gpio-watch, a tool for running scripts in response to gpio events
+ * Copyright (C) 2014 Lars Kellogg-Stedman <lars@oddbit.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <assert.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -37,6 +55,7 @@ struct pin {
 struct pin *pins = NULL;
 int num_pins = 0;
 
+// Return 1 if path is a regular file, 0 otherwise.
 int is_file (const char *path) {
 	struct stat buf;
 	int err;
@@ -49,6 +68,7 @@ int is_file (const char *path) {
 	return S_ISREG(buf.st_mode);
 }
 
+// Return 1 if path is a directory, 0 otherwise.
 int is_dir (const char *path) {
 	struct stat buf;
 	int err;
@@ -61,6 +81,9 @@ int is_dir (const char *path) {
 	return S_ISDIR(buf.st_mode);
 }
 
+// Parse a string ("rising", "falling", "both") and return
+// the corresponding EDGE_* constant, or -1 if the string
+// is invalid.
 int parse_edge(const char *edge) {
 	if (0 == strncmp(edge, "rising", EDGESTRLEN))
 		return EDGE_RISING;
@@ -72,6 +95,7 @@ int parse_edge(const char *edge) {
 		return -1;
 }
 
+// Export a pin by writing to /sys/class/gpio/export.
 void pin_export(int pin) {
 	char *export_path;
 	char *pin_path;
@@ -94,7 +118,8 @@ void pin_export(int pin) {
 	free(pin_path);
 	free(export_path);
 }
-
+ 
+// Set which signal edges to detect.
 int pin_set_edge(int pin, int edge) {
 	char *pin_path;
 	int pin_path_len;
@@ -124,6 +149,7 @@ int pin_set_edge(int pin, int edge) {
 	free(pin_path);
 }
 
+// Run a script in response to an event.
 void run_script (int pin, int value) {
 	char *script_path,
 	     pin_str[GPIODIRLEN],
@@ -156,11 +182,11 @@ void run_script (int pin, int value) {
 	}
 
 	wait(&status);
-
 	free(script_path);
 
 }
 
+// Loop forever monitoring pins for activity.
 int watch_pins() {
 	struct pollfd *fdlist;
 	int i;
@@ -228,8 +254,6 @@ int main(int argc, char **argv) {
 				break;
 		}
 	}
-
-	assert(script_dir != NULL);
 
 	if (! is_dir(script_dir)) {
 		fprintf(stderr, "error: script directory \"%s\" does not exist.\n",
