@@ -55,7 +55,7 @@ struct pin *pins = NULL;
 int num_pins = 0;
 
 void usage (FILE *out) {
-	fprintf(out, "gpio-watch: usage: gpio-watch [-s script_dir] [-e default_edge] [-dDv] pin[:edge] [...]\n");
+	fprintf(out, "gpio-watch: usage: gpio-watch [-l logfile] [-s script_dir] [-e default_edge] [-dv] pin[:edge] [...]\n");
 }
 
 // Run a script in response to an event.
@@ -181,6 +181,10 @@ int main(int argc, char **argv) {
 			case OPT_VERBOSE:
 				loglevel += 1;
 				break;
+
+			case '?':
+				usage(stderr);
+				exit(2);
 		}
 	}
 
