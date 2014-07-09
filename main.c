@@ -27,8 +27,15 @@
 
 #include "gpio.h"
 #include "fileutil.h"
+#include "logging.h"
 
-#define OPTSTRING "D:e:d"
+#define OPTSTRING "s:e:vDdl:"
+
+#define OPT_SCRIPT_DIR		's'
+#define OPT_DEFAULT_EDGE	'e'
+#define OPT_VERBOSE		'v'
+#define OPT_LOGFILE		'l'
+#define OPT_DETACH		'd'
 
 // Where to look for event scripts.  Scripts in this directory
 // must be named after the pin number being monitored (so,
@@ -38,14 +45,18 @@
 #endif
 
 char *script_dir = DEFAULT_SCRIPT_DIR;
+char *logfile = NULL;
 int default_edge = EDGE_BOTH;
 int detach       = 0;
-int loglevel	 = 0;
 
 // This will hold the list of pins to monitor generated from
 // command line arguments.
 struct pin *pins = NULL;
 int num_pins = 0;
+
+void usage (FILE *out) {
+	fprintf(out, "gpio-watch: usage: gpio-watch [-s script_dir] [-e default_edge] [-dDv] pin[:edge] [...]\n");
+}
 
 // Run a script in response to an event.
 void run_script (int pin, int value) {
@@ -65,13 +76,15 @@ void run_script (int pin, int value) {
 			"%s/%d", script_dir, pin);
 
 	if (! is_file(script_path)) {
-		fprintf(stderr, "error: script \"%s\" does not exist\n",
-				script_path);
+		LOG_WARN("pin %d: script \"%s\" does not exist",
+				pin, script_path);
 		return;
 	}
 
 	snprintf(pin_str, GPIODIRLEN, "%d", pin);
 	sprintf(value_str, "%d", value);
+
+	LOG_INFO("pin %d: running script %s", pin, script_path);
 
 	if (0 == (pid = fork())) {
 		int res;
@@ -83,11 +96,11 @@ void run_script (int pin, int value) {
 
 	if (WIFEXITED(status)) {
 		if (0 != WEXITSTATUS(status)) {
-			fprintf(stderr, "warning: pin %d: event script exited with status = %d\n",
+			LOG_WARN("pin %d: event script exited with status = %d",
 					pin, WEXITSTATUS(status));
 		}
 	} else if (WIFSIGNALED(status)) {
-		fprintf(stderr, "warning: pin %d: event script exited due to signal %d\n",
+		LOG_WARN("pin %d: event script exited due to signal %d",
 				pin, WTERMSIG(status));
 	}
 
@@ -130,11 +143,9 @@ int watch_pins() {
 		}
 
 		for (i=0; i<num_pins; i++) {
-			printf("%d %d %d\n",
-					pins[i].pin,
-					fdlist[i].fd,
-					fdlist[i].revents);
 			if (fdlist[i].revents & POLLPRI) {
+				LOG_INFO("pin %d: received event",
+						pins[i].pin);
 				lseek(fdlist[i].fd, 0, SEEK_SET);
 				read(fdlist[i].fd, valbuf, 2);
 				run_script(pins[i].pin,
@@ -152,24 +163,45 @@ int main(int argc, char **argv) {
 
 	while (-1 != (ch = getopt(argc, argv, OPTSTRING))) {
 		switch (ch) {
-			case 'd':
+			case OPT_LOGFILE:
+				logfile = strdup(optarg);
+				break;
+			case OPT_DETACH:
 				detach = 1;
 				break;
-			case 'D':
+			case OPT_SCRIPT_DIR:
 				script_dir = strdup(optarg);
 				break;
-			case 'e':
+			case OPT_DEFAULT_EDGE:
 				if (-1 == (default_edge = parse_edge(optarg))) {
 					fprintf(stderr, "error: invalid edge value: %s\n", optarg);
 					exit(1);
 				}
 				break;
+			case OPT_VERBOSE:
+				loglevel += 1;
+				break;
 		}
 	}
 
+	if (logfile) {
+		int fd;
+		if (-1 == (fd = open(logfile, O_WRONLY|O_CREAT|O_APPEND, 0644))) {
+			LOG_ERROR("failed to open logfile %s", logfile);
+			exit(1);
+		}
+
+		close(1);
+		close(2);
+
+		dup(fd);
+		dup(fd);
+	}
+
 	if (! is_dir(script_dir)) {
-		fprintf(stderr, "error: script directory \"%s\" does not exist.\n",
+		LOG_ERROR("error: script directory \"%s\" does not exist.",
 				script_dir);
+		exit(1);
 	}
 
 	for (i=optind; i<argc; i++) {
@@ -207,7 +239,7 @@ int main(int argc, char **argv) {
 		pin_set_direction(pins[i].pin, DIRECTION_IN);
 	}
 
-	if (detach) daemon(1, 0);
+	if (detach) daemon(1, logfile ? 1: 0);
 
 	watch_pins();
 

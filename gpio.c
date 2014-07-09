@@ -23,6 +23,7 @@
 
 #include "gpio.h"
 #include "fileutil.h"
+#include "logging.h"
 
 // Parse a string ("in", "out") and return
 // the corresponding DIRECTION_* constant, or -1 if the string
@@ -57,6 +58,8 @@ void pin_export(int pin) {
 	char *export_path;
 	char *pin_path;
 
+	LOG_DEBUG("pin %d: exporting", pin);
+
 	export_path = (char *)malloc(strlen(GPIO_BASE) + strlen("export") + 2);
 	sprintf(export_path, "%s/export", GPIO_BASE);
 
@@ -68,6 +71,11 @@ void pin_export(int pin) {
 	if (! is_dir(pin_path)) {
 		FILE *fp;
 		fp = fopen(export_path, "w");
+		if (! fp) {
+			LOG_ERROR("pin %d: failed to open %s: cannot export GPIO pins",
+					pin, export_path);
+			exit(1);
+		}
 		fprintf(fp, "%d\n", pin);
 		fclose(fp);
 	}
@@ -82,13 +90,15 @@ int pin_set_edge(int pin, int edge) {
 	int pin_path_len;
 	FILE *fp;
 
+	LOG_DEBUG("pin %d: setting edge mode %d", pin, edge);
+
 	pin_path_len = strlen(GPIO_BASE) + GPIODIRLEN + strlen("edge") + 3;
 	pin_path = (char *)malloc(pin_path_len);
 	snprintf(pin_path, pin_path_len,
 			"%s/gpio%d", GPIO_BASE, pin);
 
 	if (! is_dir(pin_path)) {
-		fprintf(stderr, "error: pin %d is not exported.\n", pin);
+		LOG_ERROR("pin %d: not exported.", pin);
 		exit(1);
 	}
 
@@ -103,8 +113,8 @@ int pin_set_edge(int pin, int edge) {
 	else if (EDGE_BOTH == edge)
 		fprintf(fp, "both\n");
 	else {
-		fprintf(stderr, "error: pin %d: invalid edge mode",
-				pin);
+		LOG_ERROR("pin %d: invalid edge mode (%d)",
+				pin, edge);
 		exit(1);
 	}
 
@@ -118,13 +128,15 @@ int pin_set_direction(int pin, int direction) {
 	int pin_path_len;
 	FILE *fp;
 
+	LOG_DEBUG("pin %d: setting direction %d", pin, direction);
+
 	pin_path_len = strlen(GPIO_BASE) + GPIODIRLEN + strlen("direction") + 3;
 	pin_path = (char *)malloc(pin_path_len);
 	snprintf(pin_path, pin_path_len,
 			"%s/gpio%d", GPIO_BASE, pin);
 
 	if (! is_dir(pin_path)) {
-		fprintf(stderr, "error: pin %d is not exported.\n", pin);
+		LOG_ERROR("pin %d: not exported.", pin);
 		exit(1);
 	}
 
@@ -137,8 +149,8 @@ int pin_set_direction(int pin, int direction) {
 	else if (DIRECTION_OUT == direction)
 		fprintf(fp, "out\n");
 	else {
-		fprintf(stderr, "error: pin %d: invalid direction\n",
-				pin);
+		LOG_ERROR("pin %d: invalid direction (%d)",
+				pin, direction);
 		exit(1);
 	}
 
