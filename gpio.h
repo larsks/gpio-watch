@@ -23,6 +23,7 @@
 #define EDGE_RISING 1
 #define EDGE_FALLING 2
 #define EDGE_BOTH 3
+#define EDGE_SWITCH 4
 #define EDGESTRLEN 8
 
 #define DIRECTION_IN 0
