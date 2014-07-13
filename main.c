@@ -22,8 +22,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/wait.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "gpio.h"
 #include "fileutil.h"
@@ -43,6 +44,10 @@
 #ifndef DEFAULT_SCRIPT_DIR
 #define DEFAULT_SCRIPT_DIR "/etc/gpio-scripts"
 #endif
+
+// use for converting seconds to nanoseconds.
+#define NANOS 1000000000LL
+#define DEBOUNCE_INTERVAL 100000L
 
 char *script_dir = DEFAULT_SCRIPT_DIR;
 char *logfile = NULL;
@@ -115,8 +120,14 @@ int watch_pins() {
 	char *pin_path;
 	int pin_path_len;
 	char valbuf[3];
+	struct timespec ts;
+
+	unsigned char switch_state[num_pins];
+	long long now,
+	     down_at[num_pins];
 
 	valbuf[2] = '\0';
+	memset(switch_state, 0, num_pins);
 
 	pin_path_len = strlen(GPIO_BASE) + GPIODIRLEN + strlen("value") + 3;
 	pin_path = (char *)malloc(pin_path_len);
@@ -133,6 +144,8 @@ int watch_pins() {
 		fdlist[i].events = POLLPRI;
 	}
 
+	LOG_INFO("starting to monitor for gpio events");
+
 	while (1) {
 		int err;
 
@@ -144,10 +157,32 @@ int watch_pins() {
 
 		for (i=0; i<num_pins; i++) {
 			if (fdlist[i].revents & POLLPRI) {
-				LOG_INFO("pin %d: received event",
+				LOG_DEBUG("pin %d: received event",
 						pins[i].pin);
 				lseek(fdlist[i].fd, 0, SEEK_SET);
 				read(fdlist[i].fd, valbuf, 2);
+
+				// for pins use 'switch' edge mode, we only trigger
+				// an event when we receive the '1' event more than
+				// DEBOUNCE_INTERVAL nanoseconds after the '0' event.
+  				if (EDGE_SWITCH == pins[i].edge) {
+					clock_gettime(CLOCK_MONOTONIC, &ts);
+					now = ts.tv_sec * NANOS + ts.tv_nsec;
+
+					if (switch_state[i] == 0 && valbuf[0] == '1') {
+						down_at[i] = now;
+						switch_state[i] = 1;
+					} else if (switch_state[i] == 1 && valbuf[0] == '0') {
+						if (now - down_at[i] > DEBOUNCE_INTERVAL) {
+							switch_state[i] = 0;
+							goto run_script;
+						}
+					}
+
+					continue;
+  				}
+
+run_script:
 				run_script(pins[i].pin,
 						valbuf[0] == '1' ? 1 : 0);
 			}
@@ -238,6 +273,7 @@ int main(int argc, char **argv) {
 	}
 
 	for (i=0; i<num_pins; i++) {
+		printf("%d: %d %d\n", i, pins[i].pin, pins[i].edge);
 		pin_export(pins[i].pin);
 		pin_set_edge(pins[i].pin, pins[i].edge);
 		pin_set_direction(pins[i].pin, DIRECTION_IN);
