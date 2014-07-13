@@ -28,7 +28,7 @@ pin 4.
 Options
 =======
 
-- `-D script_directory` -- location in which `gpio-watch` will look
+- `-s script_directory` -- location in which `gpio-watch` will look
   for event handling scripts.  Scripts must be named after the pin
   number triggering the event.  For example, if you specify `-D
   /etc/gpio-scripts`, and `gpio-watch` processes an event on pin 4, it
@@ -37,21 +37,27 @@ Options
   Defaults to `/etc/gpio-scripts`.
 
 - `-e default_edge` -- specifies whether `gpio-watch` should monitor
-  rising, falling, or both edges by default.  You can also specify
+  `rising`, `falling`, or `both` edges by default.  You can also specify
   edge detection per-pin.
+
+  The special keyword `switch` activates switch debouncing logic.  In
+  this mode, `gpio-watch` sets the edge mode to `both` but only
+  activates the event script when the button has been released.  The
+  release (falling) event must happen more than `DEBOUNCE_INTERVAL` (current
+  hardcoded as 100000 nanoseconds) after the press (rising) event to 
+  activate the script.
 
 Example
 =======
 
-Watch pins 21, 22, and 23 for events.  Monitor rising and falling
-events on 21 and 22, but only rising events on 23:
+Watch switches connected to pins 21, 22, and 23:
 
-    gpio-watch 21 22 23:rising
+    gpio-watch -e switch 21 22 23
 
 If you were to press a button connected to pin 23, `gpio-watch` would
 attempt to run:
 
-    /etc/gpio-scripts/23 23 1
+    /etc/gpio-scripts/23 23 0
 
 That is, the event script is called with both the pin number and the
 current pin value to permit a single script to handle multiple events.
