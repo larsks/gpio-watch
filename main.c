@@ -273,7 +273,6 @@ int main(int argc, char **argv) {
 	}
 
 	for (i=0; i<num_pins; i++) {
-		printf("%d: %d %d\n", i, pins[i].pin, pins[i].edge);
 		pin_export(pins[i].pin);
 		pin_set_edge(pins[i].pin, pins[i].edge);
 		pin_set_direction(pins[i].pin, DIRECTION_IN);
