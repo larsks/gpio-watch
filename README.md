@@ -44,7 +44,7 @@ Options
   this mode, `gpio-watch` sets the edge mode to `both` but only
   activates the event script when the button has been released.  The
   release (falling) event must happen more than `DEBOUNCE_INTERVAL` (current
-  hardcoded as 100000 nanoseconds) after the press (rising) event to 
+  hardcoded as 100000 nanoseconds) after the press (rising) event to
   activate the script.
 
 Example
@@ -61,6 +61,12 @@ attempt to run:
 
 That is, the event script is called with both the pin number and the
 current pin value to permit a single script to handle multiple events.
+
+Build & install
+===============
+
+    make
+    sudo make install
 
 License
 =======
