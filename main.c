@@ -30,7 +30,7 @@
 #include "fileutil.h"
 #include "logging.h"
 
-#define OPTSTRING "s:e:vDdl:"
+#define OPTSTRING "s:e:vdl:"
 
 #define OPT_SCRIPT_DIR		's'
 #define OPT_DEFAULT_EDGE	'e'

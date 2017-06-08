@@ -6,7 +6,7 @@ gpio-watch
 Synopsis
 ========
 
-    gpio-watch [-D script_directory] [-e default_edge] [pin[:edge]] ...
+    gpio-watch [-s script_directory] [-e default_edge] [pin[:edge]] ...
 
 Description
 ===========
@@ -30,7 +30,7 @@ Options
 
 - `-s script_directory` -- location in which `gpio-watch` will look
   for event handling scripts.  Scripts must be named after the pin
-  number triggering the event.  For example, if you specify `-D
+  number triggering the event.  For example, if you specify `-s
   /etc/gpio-scripts`, and `gpio-watch` processes an event on pin 4, it
   will attempt to run `/etc/gpio-scripts/4`.
 
