@@ -1,6 +1,9 @@
 SRCS = main.c gpio.c fileutil.c logging.c
 OBJS = $(SRCS:.c=.o)
 LIBS = -lrt
+# _DEFAULT_SOURCE (glibc >= 2.19) for clock_gettime(),
+# strdup(), and daemon().
+CFLAGS = -Wall -Wpedantic -D_DEFAULT_SOURCE --std=c99
 INSTALL = install
 
 prefix = /usr

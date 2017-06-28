@@ -56,11 +56,12 @@ int parse_edge(const char *edge) {
 }
 
 // Export a pin by writing to /sys/class/gpio/export.
-void pin_export(int pin) {
+int pin_export(int pin) {
 	char *export_path,
 	     *pin_path;
 	int export_path_len,
 	    pin_path_len;
+	int ret = 0;
 
 	LOG_DEBUG("pin %d: exporting", pin);
 
@@ -74,12 +75,13 @@ void pin_export(int pin) {
 
 	if (! is_dir(pin_path)) {
 		FILE *fp;
-		int tries = 0;
 
 		fp = fopen(export_path, "w");
 		if (!fp) {
 			LOG_ERROR("pin %d: failed to open %s: cannot export",
 				pin, export_path);
+			ret = 1;
+			goto end;
 		}
 		fprintf(fp, "%d\n", pin);
 		fclose(fp);
@@ -87,13 +89,15 @@ void pin_export(int pin) {
 		// gpio directories are initially owned by 'root'.  If you have
 		// udev rules that change this, it may take a moment for those 
 		// changes to happen.
-		LOG_DEBUG("waiting for udev to catch up");
+		LOG_DEBUG("waiting for udev to catch up", NULL);
 		sleep(1);
 	}
 
 end:
-	free(pin_path);
-	free(export_path);
+	if (pin_path != NULL) free(pin_path);
+	if (export_path != NULL) free(export_path);
+
+	return ret;
 }
  
 // Set which signal edges to detect.
@@ -101,6 +105,7 @@ int pin_set_edge(int pin, int edge) {
 	char *pin_path;
 	int pin_path_len;
 	FILE *fp;
+	int ret = 0;
 
 	LOG_DEBUG("pin %d: setting edge mode %d", pin, edge);
 
@@ -111,7 +116,8 @@ int pin_set_edge(int pin, int edge) {
 
 	if (! is_dir(pin_path)) {
 		LOG_ERROR("pin %d: not exported.", pin);
-		exit(1);
+		ret = 1;
+		goto end;
 	}
 
 	snprintf(pin_path, pin_path_len,
@@ -121,7 +127,8 @@ int pin_set_edge(int pin, int edge) {
 	if (! fp) {
 		LOG_ERROR("pin %d: failed to open %s: unable to set edge",
 			pin, pin_path);
-		exit(1);
+		ret = 1;
+		goto end;
 	}
 
 	if (EDGE_RISING == edge)
@@ -133,11 +140,15 @@ int pin_set_edge(int pin, int edge) {
 	else {
 		LOG_ERROR("pin %d: invalid edge mode (%d)",
 				pin, edge);
-		exit(1);
+		ret = 1;
+		goto end;
 	}
 
-	fclose(fp);
-	free(pin_path);
+end:
+	if (fp != NULL) fclose(fp);
+	if (pin_path != NULL) free(pin_path);
+
+	return ret;
 }
 
 // Set pin as input or output.
@@ -145,6 +156,7 @@ int pin_set_direction(int pin, int direction) {
 	char *pin_path;
 	int pin_path_len;
 	FILE *fp;
+	int ret = 0;
 
 	LOG_DEBUG("pin %d: setting direction %d", pin, direction);
 
@@ -155,7 +167,8 @@ int pin_set_direction(int pin, int direction) {
 
 	if (! is_dir(pin_path)) {
 		LOG_ERROR("pin %d: not exported.", pin);
-		exit(1);
+		ret = 1;
+		goto end;
 	}
 
 	snprintf(pin_path, pin_path_len,
@@ -169,10 +182,14 @@ int pin_set_direction(int pin, int direction) {
 	else {
 		LOG_ERROR("pin %d: invalid direction (%d)",
 				pin, direction);
-		exit(1);
+		ret = 1;
+		goto end;
 	}
 
-	fclose(fp);
-	free(pin_path);
+end:
+	if (fp != NULL) fclose(fp);
+	if (pin_path != NULL) free(pin_path);
+
+	return ret;
 }
 

@@ -144,7 +144,7 @@ int watch_pins() {
 		fdlist[i].events = POLLPRI;
 	}
 
-	LOG_INFO("starting to monitor for gpio events");
+	LOG_INFO("starting to monitor for gpio events", NULL);
 
 	while (1) {
 		int err;
@@ -191,8 +191,6 @@ run_script:
 }
 
 int main(int argc, char **argv) {
-	struct pollfd *fdlist;
-	int numfds = 0;
 	int ch;
 	int i;
 
@@ -273,9 +271,18 @@ int main(int argc, char **argv) {
 	}
 
 	for (i=0; i<num_pins; i++) {
-		pin_export(pins[i].pin);
-		pin_set_edge(pins[i].pin, pins[i].edge);
-		pin_set_direction(pins[i].pin, DIRECTION_IN);
+		if (pin_export(pins[i].pin) != 0)
+		{
+			exit(1);
+		}
+		if (pin_set_edge(pins[i].pin, pins[i].edge) != 0)
+		{
+			exit(1);
+		}
+		if (pin_set_direction(pins[i].pin, DIRECTION_IN) != 0)
+		{
+			exit(1);
+		}
 	}
 
 	if (detach) daemon(1, logfile ? 1: 0);
