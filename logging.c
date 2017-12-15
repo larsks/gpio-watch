@@ -1,3 +1,4 @@
+// This is also a test
 /*
  * gpio-watch, a tool for running scripts in response to gpio events
  * Copyright (C) 2014 Lars Kellogg-Stedman <lars@oddbit.com>
