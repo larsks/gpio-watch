@@ -55,6 +55,48 @@ int parse_edge(const char *edge) {
 		return -1;
 }
 
+// unexport a pin by writing to /sys/class/gpio/unexport.
+void pin_unexport(int pin) {
+    char *unexport_path,
+         *pin_path;
+    int unexport_path_len,
+        pin_path_len;
+
+    LOG_DEBUG("pin %d: unexporting", pin);
+
+    unexport_path_len = strlen(GPIO_BASE) + strlen("unexport") + 3;
+    unexport_path = (char *)malloc(unexport_path_len);
+    snprintf(unexport_path, unexport_path_len-1, "%s/unexport", GPIO_BASE);
+
+    pin_path_len = strlen(GPIO_BASE) + GPIODIRLEN + 3;
+    pin_path = (char *)malloc(pin_path_len);
+    snprintf(pin_path, pin_path_len-1, "%s/gpio%d", GPIO_BASE, pin);
+
+    if (is_dir(pin_path)) {
+        FILE *fp;
+        int tries = 0;
+
+        printf("unexport: %s\n", unexport_path);
+        fp = fopen(unexport_path, "w");
+        if (!fp) {
+            LOG_ERROR("pin %d: failed to open %s: cannot unexport",
+                pin, unexport_path);
+        }
+        fprintf(fp, "%d\n", pin);
+        fclose(fp);
+
+        // gpio directories are initially owned by 'root'.  If you have
+        // udev rules that change this, it may take a moment for those 
+        // changes to happen.                                                                                                                                                                                                                                                  
+        LOG_DEBUG("waiting for udev to catch up");
+        sleep(1);
+    }
+
+end:
+    free(pin_path);
+    free(unexport_path);
+}
+
 // Export a pin by writing to /sys/class/gpio/export.
 void pin_export(int pin) {
 	char *export_path,

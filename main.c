@@ -150,6 +150,7 @@ int watch_pins() {
 		int err;
 
 		err = poll(fdlist, num_pins, -1);
+		//printf("poll ret: %d\n", err);
 		if (-1 == err) {
 			perror("poll");
 			exit(1);
@@ -273,9 +274,11 @@ int main(int argc, char **argv) {
 	}
 
 	for (i=0; i<num_pins; i++) {
+		//on some device, export twice not work well, unexport first
+		pin_unexport(pins[i].pin);
 		pin_export(pins[i].pin);
-		pin_set_edge(pins[i].pin, pins[i].edge);
 		pin_set_direction(pins[i].pin, DIRECTION_IN);
+		pin_set_edge(pins[i].pin, pins[i].edge);
 	}
 
 	if (detach) daemon(1, logfile ? 1: 0);
