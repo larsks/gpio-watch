@@ -25,6 +25,7 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "gpio.h"
 #include "fileutil.h"
@@ -47,7 +48,7 @@
 
 // use for converting seconds to nanoseconds.
 #define NANOS 1000000000LL
-#define DEBOUNCE_INTERVAL 100000L
+#define DEBOUNCE_INTERVAL 0L
 
 char *script_dir = DEFAULT_SCRIPT_DIR;
 char *logfile = NULL;
@@ -71,7 +72,6 @@ void run_script (int pin, int value) {
 	int script_path_len;
 	pid_t pid;
 	int status;
-
 	script_path_len = strlen(script_dir)
 			+ GPIODIRLEN
 			+ 2;
@@ -121,13 +121,16 @@ int watch_pins() {
 	int pin_path_len;
 	char valbuf[3];
 	struct timespec ts;
+	int ONES = 0;
 
 	unsigned char switch_state[num_pins];
+	unsigned char new_state[num_pins];
 	long long now,
 	     down_at[num_pins];
 
 	valbuf[2] = '\0';
 	memset(switch_state, 0, num_pins);
+	memset(new_state, 0, num_pins);
 
 	pin_path_len = strlen(GPIO_BASE) + GPIODIRLEN + strlen("value") + 3;
 	pin_path = (char *)malloc(pin_path_len);
@@ -156,35 +159,74 @@ int watch_pins() {
 		}
 
 		for (i=0; i<num_pins; i++) {
+
 			if (fdlist[i].revents & POLLPRI) {
 				LOG_DEBUG("pin %d: received event",
 						pins[i].pin);
 				lseek(fdlist[i].fd, 0, SEEK_SET);
 				read(fdlist[i].fd, valbuf, 2);
 
-				// for pins use 'switch' edge mode, we only trigger
+				if ( pins[i].edge == EDGE_RISING )
+				{
+					if ( valbuf[i] == '1') 
+					{
+						new_state[i] = 1;
+					}
+					else
+					{
+						new_state[i] = 0;
+					}	
+				}
+				else if( pins[i].edge == EDGE_FALLING )
+				{
+					if ( valbuf[i] == '0') 
+					{
+						new_state[i] = 1;
+					}
+					else
+					{
+						new_state[i] = 0;
+					}	
+				}
 				// an event when we receive the '1' event more than
 				// DEBOUNCE_INTERVAL nanoseconds after the '0' event.
-  				if (EDGE_SWITCH == pins[i].edge) {
-					clock_gettime(CLOCK_MONOTONIC, &ts);
-					now = ts.tv_sec * NANOS + ts.tv_nsec;
+  				
+				clock_gettime(CLOCK_MONOTONIC, &ts);
+				now = ts.tv_sec * NANOS + ts.tv_nsec;
 
-					if (switch_state[i] == 0 && valbuf[0] == '1') {
+				if ( pins[i].edge == EDGE_RISING ||  pins[i].edge == EDGE_FALLING )
+				{
+					if (switch_state[i] == 0 && new_state[i] == 1) {
 						down_at[i] = now;
 						switch_state[i] = 1;
-					} else if (switch_state[i] == 1 && valbuf[0] == '0') {
-						if (now - down_at[i] > DEBOUNCE_INTERVAL) {
-							switch_state[i] = 0;
-							goto run_script;
+
+						LOG_DEBUG("pin %d: change state 1 %ld", pins[i].pin, now );
+
+					} else if (switch_state[i] == 1 && new_state[i] == 0) {
+						
+						switch_state[i] = 0;
+						LOG_DEBUG("pin %d: change state 2 %ld", pins[i].pin, now );
+
+						if ( (now - down_at[i]) > pins[i].debounce) {	
+							run_script(pins[i].pin, valbuf[0] == '1' ? 1 : 0);
 						}
 					}
-
-					continue;
   				}
-
-run_script:
-				run_script(pins[i].pin,
-						valbuf[0] == '1' ? 1 : 0);
+				else if ( pins[i].edge == EDGE_BOTH )
+				{
+					if (switch_state[i] != new_state[i] ) {
+						down_at[i] = now;
+						switch_state[i] = new_state[i];
+						ONES = 1;
+					}
+					else
+					{
+						if ((now - down_at[i] > pins[i].debounce) && ONES == 1 ) {
+							ONES = 0;
+							run_script(pins[i].pin, valbuf[0] == '1' ? 1 : 0);
+						}
+					}
+				}
 			}
 		}
 	}
@@ -247,23 +289,42 @@ int main(int argc, char **argv) {
 		char *pos,
 		     *pinspec;
 		struct pin p;
+		char *tokenPtr;
+		char *eptr;
+		int pedge;
+		long debounce;
 
 		pinspec = strdup(argv[i]);
-		pos = strchr(pinspec, ':');
-
-		if (pos) {
-			*pos = '\0';
-			pos++;
-			p.pin = atoi(pinspec);
-			if (-1 == (p.edge = parse_edge(pos))) {
-				fprintf(stderr, "error: unknown edge spec: %s\n",
-						argv[i]);
-				exit(1);
-			}
-		} else {
-			p.pin = atoi(pinspec);
-			p.edge = default_edge;
+		tokenPtr = strtok(pinspec, ":");
+		if (tokenPtr == NULL) {
+			LOG_DEBUG("skipping empty pin definition");
+			free(pinspec);
+			continue;
 		}
+		errno = 0;
+		p.pin = (int)strtol(tokenPtr, &eptr, 10);
+		if (errno) {
+			LOG_DEBUG("pin %s is not a number", tokenPtr);
+			free(pinspec);
+			continue;
+		}
+		p.edge = default_edge;
+		p.debounce = DEBOUNCE_INTERVAL;
+		tokenPtr = strtok(NULL, ":");
+		while(tokenPtr != NULL) {
+			pedge = parse_edge(tokenPtr);
+			if (-1 == pedge) {
+				errno = 0;
+				debounce = strtol(tokenPtr, &eptr, 10);
+				if (!errno && debounce >= 0) {
+					p.debounce = debounce;
+				}
+			} else {
+				p.edge = pedge;
+			}
+			tokenPtr = strtok(NULL, ":");
+		}
+		LOG_DEBUG("monitoring pin %d edge %d debounce %ldns", p.pin, p.edge, p.debounce);
 
 		free(pinspec);
 
