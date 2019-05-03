@@ -168,15 +168,15 @@ int watch_pins() {
 				// 'switchup' is the same but with the opposite edge 
 				// detection.
 				if (EDGE_SWITCH == pins[i].edge || EDGE_SWITCH_UP == pins[i].edge) {
-					char up = EDGE_SWITCH == pins[i].edge ? '1' : '0';
-					char down = EDGE_SWITCH == pins[i].edge ? '0' : '1';
+					char press = EDGE_SWITCH == pins[i].edge ? '1' : '0';
+					char release = EDGE_SWITCH == pins[i].edge ? '0' : '1';
 					clock_gettime(CLOCK_MONOTONIC, &ts);
 					now = ts.tv_sec * NANOS + ts.tv_nsec;
 
-					if (switch_state[i] == 0 && valbuf[0] == up) {
+					if (switch_state[i] == 0 && valbuf[0] == press) {
 						down_at[i] = now;
 						switch_state[i] = 1;
-					} else if (switch_state[i] == 1 && valbuf[0] == down) {
+					} else if (switch_state[i] == 1 && valbuf[0] == release) {
 						if (now - down_at[i] > DEBOUNCE_INTERVAL) {
 							switch_state[i] = 0;
 							goto run_script;
