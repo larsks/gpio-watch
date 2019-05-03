@@ -49,6 +49,8 @@ int parse_edge(const char *edge) {
 		return EDGE_BOTH;
 	else if (0 == strncmp(edge, "switch", EDGESTRLEN))
 		return EDGE_SWITCH;
+	else if (0 == strncmp(edge, "switchup", EDGESTRLEN))
+		return EDGE_SWITCH_UP;
 	else if (0 == strncmp(edge, "none", EDGESTRLEN))
 		return EDGE_NONE;
 	else
@@ -128,7 +130,7 @@ int pin_set_edge(int pin, int edge) {
 		fprintf(fp, "rising\n");
 	else if (EDGE_FALLING == edge)
 		fprintf(fp, "falling\n");
-	else if (EDGE_BOTH == edge || EDGE_SWITCH == edge)
+	else if (EDGE_BOTH == edge || EDGE_SWITCH == edge || EDGE_SWITCH_UP == edge)
 		fprintf(fp, "both\n");
 	else {
 		LOG_ERROR("pin %d: invalid edge mode (%d)",
