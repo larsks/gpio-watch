@@ -47,7 +47,8 @@
 
 // use for converting seconds to nanoseconds.
 #define NANOS 1000000000LL
-#define DEBOUNCE_INTERVAL 100000L
+#define DEBOUNCE_INTERVAL 200000000LL  	//minimum time the button must be pushed to execute the script
+#define IGNORE_INTERVAL 1000000L 	//ns time (1ms) to ignore everything
 
 char *script_dir = DEFAULT_SCRIPT_DIR;
 char *logfile = NULL;
@@ -172,7 +173,15 @@ int watch_pins() {
 					if (switch_state[i] == 0 && valbuf[0] == '1') {
 						down_at[i] = now;
 						switch_state[i] = 1;
-					} else if (switch_state[i] == 1 && valbuf[0] == '0') {
+					} 
+					 else if (switch_state[i] == 1 && valbuf[0] == '0' &&(now - down_at[i] < IGNORE_INTERVAL)) {
+						//ignore here, this is the bouncing.
+                                        }
+                                         else if (switch_state[i] == 1 && valbuf[0] == '0' &&(now - down_at[i] < DEBOUNCE_INTERVAL)) {
+                                            	switch_state[i] = 0;
+						//button let go too early or EelctroMagnetic spike thus ignoring
+                                        }
+					else if (switch_state[i] == 1 && valbuf[0] == '0') {
 						if (now - down_at[i] > DEBOUNCE_INTERVAL) {
 							switch_state[i] = 0;
 							goto run_script;
