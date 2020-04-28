@@ -47,7 +47,8 @@
 
 // use for converting seconds to nanoseconds.
 #define NANOS 1000000000LL
-#define DEBOUNCE_INTERVAL 100000L
+#define IGNORE_INTERVAL 200000000LL  	//minimum time (200ms) the button must be pushed to execute the script
+#define DEBOUNCE_INTERVAL 1000000L 	//ns time (1ms) to ignore everything
 
 char *script_dir = DEFAULT_SCRIPT_DIR;
 char *logfile = NULL;
@@ -164,7 +165,7 @@ int watch_pins() {
 
 				// for pins use 'switch' edge mode, we only trigger
 				// an event when we receive the '1' event more than
-				// DEBOUNCE_INTERVAL nanoseconds after the '0' event.
+				// DEBOUNCE_INTERVAL + IGNORE_INTERVAL nanoseconds before the '0' event.
   				if (EDGE_SWITCH == pins[i].edge) {
 					clock_gettime(CLOCK_MONOTONIC, &ts);
 					now = ts.tv_sec * NANOS + ts.tv_nsec;
@@ -172,8 +173,16 @@ int watch_pins() {
 					if (switch_state[i] == 0 && valbuf[0] == '1') {
 						down_at[i] = now;
 						switch_state[i] = 1;
-					} else if (switch_state[i] == 1 && valbuf[0] == '0') {
-						if (now - down_at[i] > DEBOUNCE_INTERVAL) {
+					} 
+					else if (switch_state[i] == 1 && valbuf[0] == '0' &&(now - down_at[i] < DEBOUNCE_INTERVAL)) {
+						//ignore everything here, this is the bouncing.
+                                        }
+                                        else if (switch_state[i] == 1 && valbuf[0] == '0' &&(now - down_at[i] < IGNORE_INTERVAL)) {
+                                            	switch_state[i] = 0;
+						//button let go too early or another EelctroMagnetic generated spike: resetting
+                                        }
+					else if (switch_state[i] == 1 && valbuf[0] == '0') {
+						if (now - down_at[i] >= IGNORE_INTERVAL) {
 							switch_state[i] = 0;
 							goto run_script;
 						}
