@@ -47,6 +47,9 @@ Options
   hardcoded as 100000 nanoseconds) after the press (rising) event to
   activate the script.
 
+  For pins with a pull-up resistor `switchup` will work the same as `switch`
+  but treats the falling edge as the press and the rising edge as the release.
+
 Example
 =======
 
